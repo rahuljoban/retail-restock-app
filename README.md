@@ -33,10 +33,12 @@ pip install -r requirements.txt
 cp .env.example .env
 # Add your DATABASE_URL to .env
 uvicorn main:app --reload
+```
 
-###Frontend
+### Frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev
+```
