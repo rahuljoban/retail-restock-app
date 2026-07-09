@@ -41,23 +41,91 @@ def db_test():
 
 @app.get("/items")
 def get_items():
-    """Fetch all items from the database."""
+    """Fetch all items with counts and priority sorting."""
     if not DATABASE_URL:
         return {"error": "DATABASE_URL not set in .env"}
     try:
         engine = create_engine(DATABASE_URL)
         with engine.connect() as conn:
+            # Get all items
             result = conn.execute(text("SELECT * FROM items ORDER BY id"))
             items = []
+            backstock_count = 0
+            sales_floor_count = 0
+
             for row in result:
-                items.append({
+                item = {
                     "id": row.id,
                     "name": row.name,
                     "sku": row.sku,
                     "location": row.location,
                     "quantity": row.quantity,
-                    "min_threshold": row.min_threshold
-                })
-            return {"items": items}
+                    "min_threshold": row.min_threshold,
+                    "floor_capacity": row.floor_capacity,
+                }
+                items.append(item)
+
+                # Count totals
+                if row.location == "back_stock":
+                    backstock_count += row.quantity
+                elif row.location == "sales_floor":
+                    sales_floor_count += row.quantity
+
+            # Sort by priority: items where sales_floor quantity is farthest below floor_capacity
+            def priority_score(item):
+                if item["location"] == "sales_floor":
+                    return item["floor_capacity"] - item["quantity"]
+                # Items in backstock still show up but lower priority
+                return 999
+
+            items.sort(key=priority_score, reverse=True)
+
+            return {
+                "items": items,
+                "backstock_count": backstock_count,
+                "sales_floor_count": sales_floor_count,
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.put("/items/{item_id}/stock")
+def stock_item(item_id: int):
+    """Move an item from back_stock to sales_floor and increment quantity."""
+    if not DATABASE_URL:
+        return {"error": "DATABASE_URL not set in .env"}
+    try:
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as conn:
+            # Check if item exists and get current location
+            check_sql = "SELECT location, quantity FROM items WHERE id = :id"
+            result = conn.execute(text(check_sql), {"id": item_id})
+            row = result.fetchone()
+            if not row:
+                return {"error": "Item not found"}
+
+            current_location, current_quantity = row
+
+            # If already on sales floor, just increment quantity
+            if current_location == "sales_floor":
+                new_quantity = current_quantity + 1
+                update_sql = """
+                    UPDATE items
+                    SET quantity = :quantity, updated_at = NOW()
+                    WHERE id = :id
+                """
+                conn.execute(text(update_sql), {"quantity": new_quantity, "id": item_id})
+                conn.commit()
+                return {"message": f"Added one to sales floor. New quantity: {new_quantity}"}
+
+            # Otherwise move from back_stock to sales_floor
+            else:
+                update_sql = """
+                    UPDATE items
+                    SET location = 'sales_floor', quantity = quantity + 1, updated_at = NOW()
+                    WHERE id = :id
+                """
+                conn.execute(text(update_sql), {"id": item_id})
+                conn.commit()
+                return {"message": "Item moved to sales floor and quantity incremented!"}
     except Exception as e:
         return {"error": str(e)}
