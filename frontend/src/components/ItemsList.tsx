@@ -54,6 +54,20 @@ export default function ItemsList() {
     }
   };
 
+  const handleDelete = async (id: number, name: string) => {
+  if (!confirm(`Delete "${name}"? This action cannot be undone.`)) return;
+  try {
+    const response = await fetch(`http://localhost:8000/items/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete item');
+    await fetchItems();
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    alert('Failed to delete item. Is the backend running?');
+  }
+};
+
   if (loading) return <div className="p-4">Loading items...</div>;
   if (error) return <div className="p-4 text-red-500">{error}</div>;
 
@@ -75,7 +89,6 @@ export default function ItemsList() {
 
       <div className="grid gap-4">
         {items.map(item => {
-          // Calculate priority: how far below floor_capacity
           const deficit = item.location === 'sales_floor' 
             ? Math.max(0, item.floor_capacity - item.quantity) 
             : 0;
@@ -84,7 +97,6 @@ export default function ItemsList() {
           const isWarning = deficit > 0 && deficit < 5;
           const isFull = deficit === 0 && item.location === 'sales_floor';
 
-          // Determine card border and background
           let cardClasses = "border rounded-lg p-4 shadow-sm transition-all bg-white ";
           if (isCritical) {
             cardClasses += "border-red-500 bg-red-50 border-2";
@@ -101,15 +113,18 @@ export default function ItemsList() {
                   <h2 className="text-xl font-semibold">{item.name}</h2>
                   <p className="text-sm text-gray-500">SKU: {item.sku}</p>
                   <p className="text-sm">
-                    Location: <span className="capitalize">{item.location}</span>
+                    Location: <span className="capitalize">{item.location.replace('_', ' ')}</span>
                   </p>
+                 <button onClick={() => handleDelete(item.id, item.name)}
+                  className="text-red-400 hover:text-red-700 text-sm ml-3 transition-colors"
+                  title="Delete item">🗑️ Delete </button>
                   {item.location === 'sales_floor' && (
-                    <p className="text-xs text-gray-400">
-                      Floor Capacity: {item.floor_capacity}
-                    </p>
+                    <p className="text-xs text-gray-400">Capacity: {item.floor_capacity}</p>
                   )}
                 </div>
+                
                 <div className="text-right">
+                  <p className="text-sm text-gray-400">Sales Floor Qty: </p>
                   <p className={`text-lg font-bold ${
                     isCritical ? 'text-red-500' : 
                     isWarning ? 'text-yellow-600' : 
@@ -117,7 +132,6 @@ export default function ItemsList() {
                   }`}>
                     {item.quantity}
                   </p>
-                  <p className="text-xs text-gray-400">Min Threshold: {item.min_threshold}</p>
                 </div>
               </div>
               
@@ -130,7 +144,6 @@ export default function ItemsList() {
                   {stockingId === item.id ? 'Stocking...' : 'Stock It'}
                 </button>
                 
-                {/* Visual Indicators */}
                 {item.location === 'sales_floor' && (
                   <>
                     {deficit === 0 && (
