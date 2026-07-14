@@ -23,7 +23,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Local development
-        "https://retail-restock-app.onrender.com"
+        "https://retail-restock-app.vercel.app",  # Add your Vercel URL here
+        "https://retail-restock-app.onrender.com",  # Your backend URL
     ],
     allow_credentials=True,
     allow_methods=["*"],
