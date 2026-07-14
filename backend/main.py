@@ -21,7 +21,10 @@ app = FastAPI(title="Retail Restock API")
 # CORS middleware (so your React frontend can talk to this backend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",  # Local development
+        "https://retail-restock-app.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
