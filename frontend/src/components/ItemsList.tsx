@@ -41,7 +41,7 @@ export default function ItemsList() {
   const handleStock = async (id: number) => {
     setStockingId(id);
     try {
-      const response = await fetch(`http://localhost:8000/items/${id}/stock`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/stock`, {
         method: 'PUT',
       });
       if (!response.ok) throw new Error('Failed to stock item');
@@ -57,7 +57,7 @@ export default function ItemsList() {
   const handleDelete = async (id: number, name: string) => {
   if (!confirm(`Delete "${name}"? This action cannot be undone.`)) return;
   try {
-    const response = await fetch(`http://localhost:8000/items/${id}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}`, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to delete item');
