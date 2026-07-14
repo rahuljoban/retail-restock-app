@@ -20,7 +20,7 @@ export default function ItemsList() {
 
   const fetchItems = async () => {
     try {
-      const response = await fetch('https://retail-restock-app.onrender.com/items');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/items`);
       if (!response.ok) throw new Error('Failed to fetch items');
       const data = await response.json();
       setItems(data.items);
