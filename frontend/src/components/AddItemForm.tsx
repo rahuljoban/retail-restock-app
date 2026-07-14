@@ -19,7 +19,7 @@ export default function AddItemForm({ onItemAdded }: AddItemFormProps) {
   setMessage('');
 
   try {
-    const response = await fetch('http://localhost:8000/items', {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/items`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
