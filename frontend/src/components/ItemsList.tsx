@@ -37,20 +37,18 @@ export default function ItemsList() {
   const handleStock = async (id: number, delta: number) => {
     setStockingId(id);
     try {
-      // For simplicity, we'll use the existing stock endpoint with a quantity param
-      // If you want to support +/- directly, you could add a new endpoint or modify the existing one
-      // For now, we'll call the stock endpoint which increments by 1
+      let response;
       if (delta === 1) {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/stock`, {
+        response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/stock`, {
           method: 'PUT',
         });
-        if (!response.ok) throw new Error('Failed to stock item');
-        await fetchItems();
       } else if (delta === -1) {
-        // Decrement logic — you'd need a new endpoint or modify the existing one
-        // For now, we'll show a placeholder
-        alert('Decrement functionality coming soon!');
+        response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/decrement`, {
+          method: 'PUT',
+        });
       }
+      if (!response?.ok) throw new Error('Failed to update item');
+      await fetchItems();
     } catch (error) {
       console.error('Error updating item:', error);
       alert('Failed to update item. Is the backend running?');
@@ -111,7 +109,8 @@ export default function ItemsList() {
                 <th className="px-4 py-3 text-left text-slate-400 font-medium">Item</th>
                 <th className="px-4 py-3 text-left text-slate-400 font-medium">SKU</th>
                 <th className="px-4 py-3 text-left text-slate-400 font-medium">Location</th>
-                <th className="px-4 py-3 text-center text-slate-400 font-medium">Qty</th>
+                <th className="px-4 py-3 text-center text-slate-400 font-medium">Qty / Cap</th>
+                <th className="px-4 py-3 text-center text-slate-400 font-medium">Status</th>
                 <th className="px-4 py-3 text-center text-slate-400 font-medium">Actions</th>
               </tr>
             </thead>
@@ -134,11 +133,21 @@ export default function ItemsList() {
                     <td className="px-4 py-3 font-medium">{item.name}</td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-400">{item.sku}</td>
                     <td className="px-4 py-3 capitalize">{item.location.replace('_', ' ')}</td>
-                    <td className="px-4 py-3 text-center font-bold">
-                      {item.quantity}
-                      {isCritical && <span className="ml-2 text-red-400 text-xs">⚠️</span>}
-                      {isWarning && <span className="ml-2 text-yellow-400 text-xs">⚡</span>}
-                      {isFull && <span className="ml-2 text-green-400 text-xs">✅</span>}
+                    <td className="px-4 py-3 text-center">
+                      <span className="font-bold">{item.quantity}</span>
+                      <span className="text-slate-500 text-xs"> / {item.floor_capacity}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {item.location === 'sales_floor' && (
+                        <>
+                          {isCritical && <span className="text-red-400 text-xs font-medium">🚨 Critical</span>}
+                          {isWarning && <span className="text-yellow-400 text-xs font-medium">⚡ Needs Restock</span>}
+                          {isFull && <span className="text-green-400 text-xs font-medium">✅ Full</span>}
+                        </>
+                      )}
+                      {item.location === 'back_stock' && (
+                        <span className="text-slate-500 text-xs">In Back Stock</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">

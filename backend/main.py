@@ -198,4 +198,33 @@ def delete_item(item_id: int):
             return {"message": f"Item {item_id} deleted successfully!"}
     except Exception as e:
         return {"error": str(e)}
+
+@app.put("/items/{item_id}/decrement")
+def decrement_item(item_id: int):
+    """Decrement item quantity by 1 (for returns or corrections)."""
+    if not DATABASE_URL:
+        return {"error": "DATABASE_URL not set in .env"}
+    try:
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as conn:
+            check_sql = "SELECT quantity FROM items WHERE id = :id"
+            result = conn.execute(text(check_sql), {"id": item_id})
+            row = result.fetchone()
+            if not row:
+                return {"error": "Item not found"}
+
+            current_quantity = row[0]
+            if current_quantity <= 0:
+                return {"error": "Quantity cannot go below 0"}
+
+            update_sql = """
+                UPDATE items
+                SET quantity = quantity - 1, updated_at = NOW()
+                WHERE id = :id
+            """
+            conn.execute(text(update_sql), {"id": item_id})
+            conn.commit()
+            return {"message": f"Decremented. New quantity: {current_quantity - 1}"}
+    except Exception as e:
+        return {"error": str(e)}
         
