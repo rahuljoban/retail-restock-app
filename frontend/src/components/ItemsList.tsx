@@ -71,6 +71,21 @@ export default function ItemsList() {
     }
   };
 
+  const handleMove = async (id: number, direction: 'to_backstock' | 'to_salesfloor') => {
+    try {
+      const endpoint = direction === 'to_backstock' 
+        ? `${import.meta.env.VITE_API_URL}/items/${id}/move-to-backstock`
+        : `${import.meta.env.VITE_API_URL}/items/${id}/move-to-salesfloor`;
+      
+      const response = await fetch(endpoint, { method: 'PUT' });
+      if (!response.ok) throw new Error('Failed to move item');
+      await fetchItems();
+    } catch (error) {
+      console.error('Error moving item:', error);
+      alert('Failed to move item. Is the backend running?');
+    }
+  };
+
   const filteredItems = filter === 'all' ? items : items.filter(item => item.location === filter);
   const backstockCount = items.filter(item => item.location === 'back_stock').reduce((sum, i) => sum + i.quantity, 0);
   const salesFloorCount = items.filter(item => item.location === 'sales_floor').reduce((sum, i) => sum + i.quantity, 0);
@@ -159,7 +174,7 @@ export default function ItemsList() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-1 flex-wrap">
                         <button
                           onClick={() => handleStock(item.id, -1)}
                           disabled={stockingId === item.id || item.quantity <= 0}
@@ -174,6 +189,26 @@ export default function ItemsList() {
                         >
                           +
                         </button>
+
+                        {item.location === 'sales_floor' && (
+                          <button
+                            onClick={() => handleMove(item.id, 'to_backstock')}
+                            className="px-2 py-1 bg-yellow-600/70 hover:bg-yellow-700/80 text-white text-xs rounded transition-colors"
+                            title="Move to Back Stock"
+                          >
+                            📦 Back
+                          </button>
+                        )}
+                        {item.location === 'back_stock' && (
+                          <button
+                            onClick={() => handleMove(item.id, 'to_salesfloor')}
+                            className="px-2 py-1 bg-green-600/70 hover:bg-green-700/80 text-white text-xs rounded transition-colors"
+                            title="Move to Sales Floor"
+                          >
+                            🏪 Floor
+                          </button>
+                        )}
+
                         <button
                           onClick={() => handleDelete(item.id, item.name)}
                           className="w-7 h-7 rounded-full bg-red-900/50 hover:bg-red-800/70 text-red-300 hover:text-red-200 text-xs font-bold transition-colors"

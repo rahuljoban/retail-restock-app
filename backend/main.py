@@ -227,4 +227,60 @@ def decrement_item(item_id: int):
             return {"message": f"Decremented. New quantity: {current_quantity - 1}"}
     except Exception as e:
         return {"error": str(e)}
+
+@app.put("/items/{item_id}/move-to-backstock")
+def move_to_backstock(item_id: int):
+    """Move an item from sales_floor to back_stock."""
+    if not DATABASE_URL:
+        return {"error": "DATABASE_URL not set in .env"}
+    try:
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as conn:
+            check_sql = "SELECT location FROM items WHERE id = :id"
+            result = conn.execute(text(check_sql), {"id": item_id})
+            row = result.fetchone()
+            if not row:
+                return {"error": "Item not found"}
+
+            if row[0] == "back_stock":
+                return {"error": "Item is already in back stock"}
+
+            update_sql = """
+                UPDATE items
+                SET location = 'back_stock', updated_at = NOW()
+                WHERE id = :id
+            """
+            conn.execute(text(update_sql), {"id": item_id})
+            conn.commit()
+            return {"message": "Item moved to back stock"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.put("/items/{item_id}/move-to-salesfloor")
+def move_to_salesfloor(item_id: int):
+    """Move an item from back_stock to sales_floor."""
+    if not DATABASE_URL:
+        return {"error": "DATABASE_URL not set in .env"}
+    try:
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as conn:
+            check_sql = "SELECT location FROM items WHERE id = :id"
+            result = conn.execute(text(check_sql), {"id": item_id})
+            row = result.fetchone()
+            if not row:
+                return {"error": "Item not found"}
+
+            if row[0] == "sales_floor":
+                return {"error": "Item is already on the sales floor"}
+
+            update_sql = """
+                UPDATE items
+                SET location = 'sales_floor', updated_at = NOW()
+                WHERE id = :id
+            """
+            conn.execute(text(update_sql), {"id": item_id})
+            conn.commit()
+            return {"message": "Item moved to sales floor"}
+    except Exception as e:
+        return {"error": str(e)}
         
