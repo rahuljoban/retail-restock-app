@@ -6,7 +6,6 @@ interface Item {
   sku: string;
   location: string;
   quantity: number;
-  min_threshold: number;
   floor_capacity: number;
 }
 
@@ -14,18 +13,15 @@ export default function ItemsList() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState<'all' | 'sales_floor' | 'back_stock'>('all');
   const [stockingId, setStockingId] = useState<number | null>(null);
-  const [backstockCount, setBackstockCount] = useState(0);
-  const [salesFloorCount, setSalesFloorCount] = useState(0);
 
   const fetchItems = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/items`);
       if (!response.ok) throw new Error('Failed to fetch items');
       const data = await response.json();
-      setItems(data.items);
-      setBackstockCount(data.backstock_count);
-      setSalesFloorCount(data.sales_floor_count);
+      setItems(data.items || []);
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch items. Is the backend running?');
@@ -38,135 +34,136 @@ export default function ItemsList() {
     fetchItems();
   }, []);
 
-  const handleStock = async (id: number) => {
+  const handleStock = async (id: number, delta: number) => {
     setStockingId(id);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/stock`, {
-        method: 'PUT',
-      });
-      if (!response.ok) throw new Error('Failed to stock item');
-      await fetchItems();
+      // For simplicity, we'll use the existing stock endpoint with a quantity param
+      // If you want to support +/- directly, you could add a new endpoint or modify the existing one
+      // For now, we'll call the stock endpoint which increments by 1
+      if (delta === 1) {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/stock`, {
+          method: 'PUT',
+        });
+        if (!response.ok) throw new Error('Failed to stock item');
+        await fetchItems();
+      } else if (delta === -1) {
+        // Decrement logic — you'd need a new endpoint or modify the existing one
+        // For now, we'll show a placeholder
+        alert('Decrement functionality coming soon!');
+      }
     } catch (error) {
-      console.error('Error stocking item:', error);
-      alert('Failed to stock item. Is the backend running?');
+      console.error('Error updating item:', error);
+      alert('Failed to update item. Is the backend running?');
     } finally {
       setStockingId(null);
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-  if (!confirm(`Delete "${name}"? This action cannot be undone.`)) return;
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) throw new Error('Failed to delete item');
-    await fetchItems();
-  } catch (error) {
-    console.error('Error deleting item:', error);
-    alert('Failed to delete item. Is the backend running?');
-  }
-};
+  const filteredItems = filter === 'all' ? items : items.filter(item => item.location === filter);
+  const backstockCount = items.filter(item => item.location === 'back_stock').reduce((sum, i) => sum + i.quantity, 0);
+  const salesFloorCount = items.filter(item => item.location === 'sales_floor').reduce((sum, i) => sum + i.quantity, 0);
 
-  if (loading) return <div className="p-4">Loading items...</div>;
-  if (error) return <div className="p-4 text-red-500">{error}</div>;
+  if (loading) return <div className="p-4 text-center text-slate-400">Loading inventory...</div>;
+  if (error) return <div className="p-4 text-center text-red-400">{error}</div>;
+  if (items.length === 0) return <div className="p-4 text-center text-slate-400">No items found.</div>;
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Inventory</h1>
-
-      {/* Summary Counts */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <p className="text-sm text-blue-600">Back Stock</p>
-          <p className="text-2xl font-bold">{backstockCount}</p>
+    <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">📦 Inventory</h1>
         </div>
-        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-          <p className="text-sm text-green-600">Sales Floor</p>
-          <p className="text-2xl font-bold">{salesFloorCount}</p>
+
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            All Items ({items.length})
+          </button>
+          <button
+            onClick={() => setFilter('sales_floor')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              filter === 'sales_floor' ? 'bg-green-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            Sales Floor ({salesFloorCount})
+          </button>
+          <button
+            onClick={() => setFilter('back_stock')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              filter === 'back_stock' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            Back Stock ({backstockCount})
+          </button>
         </div>
-      </div>
 
-      <div className="grid gap-4">
-        {items.map(item => {
-          const deficit = item.location === 'sales_floor' 
-            ? Math.max(0, item.floor_capacity - item.quantity) 
-            : 0;
-          
-          const isCritical = deficit >= 5;
-          const isWarning = deficit > 0 && deficit < 5;
-          const isFull = deficit === 0 && item.location === 'sales_floor';
+        {/* Table */}
+        <div className="overflow-x-auto rounded-xl border border-slate-700/50 bg-slate-800/50 backdrop-blur-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-700/50 bg-slate-900/50">
+                <th className="px-4 py-3 text-left text-slate-400 font-medium">Item</th>
+                <th className="px-4 py-3 text-left text-slate-400 font-medium">SKU</th>
+                <th className="px-4 py-3 text-left text-slate-400 font-medium">Location</th>
+                <th className="px-4 py-3 text-center text-slate-400 font-medium">Qty</th>
+                <th className="px-4 py-3 text-center text-slate-400 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems.map(item => {
+                const deficit = item.location === 'sales_floor' 
+                  ? Math.max(0, item.floor_capacity - item.quantity) 
+                  : 0;
+                const isCritical = deficit >= 5;
+                const isWarning = deficit > 0 && deficit < 5;
+                const isFull = deficit === 0 && item.location === 'sales_floor';
 
-          let cardClasses = "border rounded-lg p-4 shadow-sm transition-all bg-white ";
-          if (isCritical) {
-            cardClasses += "border-red-500 bg-red-50 border-2";
-          } else if (isWarning) {
-            cardClasses += "border-yellow-400 bg-yellow-50";
-          } else if (isFull) {
-            cardClasses += "border-green-400 bg-green-50";
-          }
+                let rowClasses = "border-b border-slate-700/30 hover:bg-slate-700/30 transition-colors";
+                if (isCritical) rowClasses += " bg-red-900/20";
+                else if (isWarning) rowClasses += " bg-yellow-900/20";
+                else if (isFull) rowClasses += " bg-green-900/20";
 
-          return (
-            <div key={item.id} className={cardClasses}>
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-semibold">{item.name}</h2>
-                  <p className="text-sm text-gray-500">SKU: {item.sku}</p>
-                  <p className="text-sm">
-                    Location: <span className="capitalize">{item.location.replace('_', ' ')}</span>
-                  </p>
-                 <button onClick={() => handleDelete(item.id, item.name)}
-                  className="text-red-400 hover:text-red-700 text-sm ml-3 transition-colors"
-                  title="Delete item">🗑️ Delete </button>
-                  {item.location === 'sales_floor' && (
-                    <p className="text-xs text-gray-400">Capacity: {item.floor_capacity}</p>
-                  )}
-                </div>
-                
-                <div className="text-right">
-                  <p className="text-sm text-gray-400">Sales Floor Qty: </p>
-                  <p className={`text-lg font-bold ${
-                    isCritical ? 'text-red-500' : 
-                    isWarning ? 'text-yellow-600' : 
-                    'text-green-600'
-                  }`}>
-                    {item.quantity}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="mt-3 flex items-center gap-3 flex-wrap">
-                <button
-                  onClick={() => handleStock(item.id)}
-                  disabled={stockingId === item.id}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium transition-colors"
-                >
-                  {stockingId === item.id ? 'Stocking...' : 'Stock It'}
-                </button>
-                
-                {item.location === 'sales_floor' && (
-                  <>
-                    {deficit === 0 && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        ✅ Full
-                      </span>
-                    )}
-                    {isWarning && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        ⚠️ Needs Restock ({deficit} below capacity)
-                      </span>
-                    )}
-                    {isCritical && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 animate-pulse">
-                        🚨 Critical! ({deficit} below capacity)
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
+                return (
+                  <tr key={item.id} className={rowClasses}>
+                    <td className="px-4 py-3 font-medium">{item.name}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-400">{item.sku}</td>
+                    <td className="px-4 py-3 capitalize">{item.location.replace('_', ' ')}</td>
+                    <td className="px-4 py-3 text-center font-bold">
+                      {item.quantity}
+                      {isCritical && <span className="ml-2 text-red-400 text-xs">⚠️</span>}
+                      {isWarning && <span className="ml-2 text-yellow-400 text-xs">⚡</span>}
+                      {isFull && <span className="ml-2 text-green-400 text-xs">✅</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleStock(item.id, -1)}
+                          disabled={stockingId === item.id || item.quantity <= 0}
+                          className="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white font-bold transition-colors"
+                        >
+                          −
+                        </button>
+                        <button
+                          onClick={() => handleStock(item.id, 1)}
+                          disabled={stockingId === item.id}
+                          className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
