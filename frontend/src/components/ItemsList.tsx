@@ -57,6 +57,20 @@ export default function ItemsList() {
     }
   };
 
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Delete "${name}"? This action cannot be undone.`)) return;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete item');
+      await fetchItems();
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('Failed to delete item. Is the backend running?');
+    }
+  };
+
   const filteredItems = filter === 'all' ? items : items.filter(item => item.location === filter);
   const backstockCount = items.filter(item => item.location === 'back_stock').reduce((sum, i) => sum + i.quantity, 0);
   const salesFloorCount = items.filter(item => item.location === 'sales_floor').reduce((sum, i) => sum + i.quantity, 0);
@@ -68,11 +82,6 @@ export default function ItemsList() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">📦 Inventory</h1>
-        </div>
-
         {/* Filter Buttons */}
         <div className="flex flex-wrap gap-3 mb-6">
           <button
@@ -164,6 +173,13 @@ export default function ItemsList() {
                           className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold transition-colors"
                         >
                           +
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id, item.name)}
+                          className="w-7 h-7 rounded-full bg-red-900/50 hover:bg-red-800/70 text-red-300 hover:text-red-200 text-xs font-bold transition-colors"
+                          title="Delete item"
+                        >
+                          ✕
                         </button>
                       </div>
                     </td>
