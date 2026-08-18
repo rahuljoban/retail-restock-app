@@ -37,7 +37,13 @@ function ItemsList() {
   }, []);
 
   const handleStock = async (id: number, delta: number) => {
-    setStockingId(id);
+    // Optimistic update
+    setItems(prevItems => prevItems.map(item => 
+      item.id === id 
+        ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+        : item
+    ));
+
     try {
       let response;
       if (delta === 1) {
@@ -50,12 +56,16 @@ function ItemsList() {
         });
       }
       if (!response?.ok) throw new Error('Failed to update item');
+      // Re-fetch to ensure consistency with the server
       await fetchItems();
     } catch (error) {
-      console.error('Error updating item:', error);
+      // Revert on error
+      setItems(prevItems => prevItems.map(item => 
+        item.id === id 
+          ? { ...item, quantity: item.quantity - delta }
+          : item
+      ));
       alert('Failed to update item. Is the backend running?');
-    } finally {
-      setStockingId(null);
     }
   };
 
