@@ -36,38 +36,40 @@ function ItemsList() {
     fetchItems();
   }, []);
 
-  const handleStock = async (id: number, delta: number) => {
-    // Optimistic update
+const handleStock = async (id: number, delta: number) => {
+  setStockingId(id); // Enable loading state
+  // Optimistic update
+  setItems(prevItems => prevItems.map(item => 
+    item.id === id 
+      ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+      : item
+  ));
+
+  try {
+    let response;
+    if (delta === 1) {
+      response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/stock`, {
+        method: 'PUT',
+      });
+    } else if (delta === -1) {
+      response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/decrement`, {
+        method: 'PUT',
+      });
+    }
+    if (!response?.ok) throw new Error('Failed to update item');
+    // Re-fetch to ensure consistency with the server
+    await fetchItems();
+  } catch (error) {
+    // Revert on error
     setItems(prevItems => prevItems.map(item => 
       item.id === id 
-        ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+        ? { ...item, quantity: item.quantity - delta }
         : item
     ));
-
-    try {
-      let response;
-      if (delta === 1) {
-        response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/stock`, {
-          method: 'PUT',
-        });
-      } else if (delta === -1) {
-        response = await fetch(`${import.meta.env.VITE_API_URL}/items/${id}/decrement`, {
-          method: 'PUT',
-        });
-      }
-      if (!response?.ok) throw new Error('Failed to update item');
-      // Re-fetch to ensure consistency with the server
-      await fetchItems();
-    } catch (error) {
-      // Revert on error
-      setItems(prevItems => prevItems.map(item => 
-        item.id === id 
-          ? { ...item, quantity: item.quantity - delta }
-          : item
-      ));
-      alert('Failed to update item. Is the backend running?');
-    }
-  };
+    alert('Failed to update item. Is the backend running?');
+  }
+  setStockingId(null); // Disable loading state
+};
 
   const handleDelete = async (id: number, name: string) => {
     if (!confirm(`Delete "${name}"? This action cannot be undone.`)) return;

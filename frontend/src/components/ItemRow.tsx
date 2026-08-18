@@ -65,9 +65,8 @@ function ItemRow({ item, onStock, onDelete, onMove, stockingId }: ItemRowProps) 
             disabled={stockingId === item.id}
             className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold transition-colors"
           >
-            +
+            {stockingId === item.id ? '...' : '+'}
           </button>
-
           {item.location === 'sales_floor' && (
             <button
               onClick={() => onMove(item.id, 'to_backstock')}
