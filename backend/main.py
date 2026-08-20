@@ -283,4 +283,8 @@ def move_to_salesfloor(item_id: int):
             return {"message": "Item moved to sales floor"}
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/health")
+def health_check():
+    return {"status": "OK", "message": "Backend is running"}
         
